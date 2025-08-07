@@ -1,7 +1,0 @@
-Git configuration test
-Author: kurtislin
-Email: klaus.lin.sc@gmail.com
-Timestamp: 2025-08-07
-
-This file is created to test the Git author configuration.
-After successful verification, this file can be deleted.
