@@ -407,6 +407,25 @@ int grid_clear_lines(grid_t *g);
  */
 bool grid_is_tetris_ready(const grid_t *g, int *well_col);
 
+/**
+ * Get the actual depth of a well at the specified column.
+ * @g : Grid to analyze
+ * @col : Column index to check (0-based)
+ *
+ * Return well depth in rows, or 0 if column is not a well
+ */
+int grid_get_well_depth(const grid_t *g, int col);
+
+/**
+ * Check if a well is accessible (not blocked from above).
+ * @g : Grid to analyze
+ * @col : Column index of the well
+ * @piece_width : Width of piece that would enter the well
+ *
+ * Return true if well can be accessed, false if blocked
+ */
+bool grid_is_well_accessible(const grid_t *g, int col, int piece_width);
+
 /*
  * Shape Stream System
  */
@@ -548,13 +567,18 @@ void game_run(const float *w);
  * Captures performance metrics for AI evaluation and comparison.
  */
 typedef struct {
-    int lines_cleared;       /**< Total lines cleared before game over */
-    int score;               /**< Final score achieved */
-    int pieces_placed;       /**< Number of pieces successfully placed */
-    float lcpp;              /**< Lines cleared per piece (efficiency) */
-    double game_duration;    /**< Game duration in seconds */
-    bool hit_piece_limit;    /**< Whether game ended due to artificial limit */
-    float pieces_per_second; /**< AI decision speed metric */
+    int lines_cleared;        /**< Total lines cleared before game over */
+    int score;                /**< Final score achieved */
+    int pieces_placed;        /**< Number of pieces successfully placed */
+    float lcpp;               /**< Lines cleared per piece (efficiency) */
+    double game_duration;     /**< Game duration in seconds */
+    bool hit_piece_limit;     /**< Whether game ended due to artificial limit */
+    float pieces_per_second;  /**< AI decision speed metric */
+    int line_distribution[5]; /**< Distribution of clears: [0]=unused,
+                                 [1]=singles, [2]=doubles, [3]=triples,
+                                 [4]=tetrises */
+    int max_height_reached;   /**< Maximum stack height during game */
+    int total_clears;         /**< Total number of clear events (not lines) */
 } game_stats_t;
 
 /**

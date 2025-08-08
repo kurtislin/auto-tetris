@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "tetris.h"
 #include "utils.h"
@@ -37,6 +38,10 @@
 /* Reward per cleared row */
 #define LINE_CLEAR_BONUS 0.75f
 
+/* T-spin detection and bonus */
+#define T_PIECE_SIGNATURE 0x36 /* Computed signature for T-piece */
+#define T_SPIN_BONUS 8.0f      /* Reward for successful T-spin */
+
 /* Penalty per hole (empty cell with filled cell above) */
 #define HOLE_PENALTY 0.8f       /* base cost (reduced; depth adds more) */
 #define HOLE_DEPTH_WEIGHT 0.05f /* extra cost per covered cell above a hole */
@@ -62,14 +67,20 @@
 #define HIGH_STACK_START 10    /* bonus starts when height >= 10 */
 #define HIGH_STACK_CAP 17      /* bonus stops growing above height */
 
-/* Well-blocking penalty for non-I pieces on Tetris-ready boards */
-#define WELL_BLOCK_PENALTY 2.0f /* score to subtract when plugging well */
+/* Well-blocking penalties for non-I pieces on Tetris-ready boards */
+#define WELL_BLOCK_BASE_PENALTY 1.0f   /* base penalty for blocking any well */
+#define WELL_BLOCK_DEPTH_FACTOR 0.5f   /* penalty per row of well depth */
+#define WELL_ACCESS_BLOCK_PENALTY 3.0f /* making well inaccessible */
 
 /* Terminal position penalty when stack hits ceiling */
 #define TOPOUT_PENALTY 10000.0f
 
 /* Adaptive search depth configuration */
 #define EARLY_GAME_PIECES 2500 /* Use faster search for first N pieces */
+
+/* Time management for iterative deepening */
+#define DEFAULT_TIME_LIMIT_MS 100 /* Default time limit in milliseconds */
+#define MIN_TIME_PER_DEPTH_MS 5   /* Minimum time to spend per depth level */
 
 /* Main evaluation cache for complete scores */
 #define EVAL_CACHE_SIZE 8192 /* 8K entries ≈64 KiB for better hit rates */
@@ -171,6 +182,15 @@ typedef struct {
     float snapshot_efficiency; /* Ratio of simple vs full snapshots */
 } depth_stats_t;
 
+/* Time management for iterative deepening */
+typedef struct {
+    clock_t start_time;     /* Search start time */
+    clock_t time_limit;     /* Maximum time allowed (in clock ticks) */
+    bool time_limited;      /* Whether search has time limit */
+    int early_terminations; /* Number of searches terminated early */
+    int completed_depths;   /* Depths completed before timeout */
+} time_manager_t;
+
 /* Move ordering data structures for alpha-beta optimization */
 #define MAX_SEARCH_DEPTH 8
 #define KILLER_SLOTS 2
@@ -228,6 +248,7 @@ typedef struct {
     depth_stats_t depth_stats;
     move_ordering_t move_ordering;
     weights_cache_t weights_cache;
+    time_manager_t time_manager;
     bool cleanup_registered;
 } move_globals_t;
 
@@ -243,6 +264,7 @@ static move_globals_t G = {0};
 #define depth_stats (G.depth_stats)
 #define move_ordering (G.move_ordering)
 #define weights_cache (G.weights_cache)
+#define time_manager (G.time_manager)
 #define cleanup_registered (G.cleanup_registered)
 #if SEARCH_DEPTH >= 2
 #define tabu_seen (G.tabu_seen)
@@ -261,12 +283,50 @@ static float ab_search_snapshot(grid_t *working_grid,
                                 float alpha,
                                 float beta);
 
+/* Time management functions */
+static void time_manager_init(int time_limit_ms);
+static bool time_manager_should_stop(void);
+static void time_manager_reset(void);
+
 /* Grid pool management functions */
 static bool grid_pool_init(const grid_t *template_grid);
 static grid_t *grid_pool_acquire(void);
 static void grid_pool_release(grid_t *grid);
 static void grid_pool_cleanup(void);
 static void grid_fast_copy(grid_t *dest, const grid_t *src);
+
+/* Time management implementation */
+static void time_manager_init(int time_limit_ms)
+{
+    time_manager.start_time = clock();
+    if (time_limit_ms > 0) {
+        time_manager.time_limit =
+            (clock_t) ((time_limit_ms * CLOCKS_PER_SEC) / 1000);
+        time_manager.time_limited = true;
+    } else {
+        time_manager.time_limited = false;
+        time_manager.time_limit = 0;
+    }
+    time_manager.completed_depths = 0;
+}
+
+static bool time_manager_should_stop(void)
+{
+    if (!time_manager.time_limited)
+        return false;
+
+    clock_t elapsed = clock() - time_manager.start_time;
+    return elapsed >= time_manager.time_limit;
+}
+
+static void time_manager_reset(void)
+{
+    time_manager.start_time = 0;
+    time_manager.time_limit = 0;
+    time_manager.time_limited = false;
+    time_manager.early_terminations = 0;
+    time_manager.completed_depths = 0;
+}
 
 /* Fast memory copy optimized for grid structures */
 static void grid_fast_copy(grid_t *dest, const grid_t *src)
@@ -408,6 +468,42 @@ static void grid_pool_cleanup(void)
 static inline bool move_cell_occupied(const grid_t *g, int x, int y)
 {
     return (g->rows[y] >> x) & 1ULL;
+}
+
+/* T-spin detection function
+ *
+ * Checks for the classic T-spin condition: at least 3 of the 4 corners
+ * of the T-piece's 3x3 bounding box must be filled after placement.
+ * This is the standard modern Tetris T-spin recognition rule.
+ */
+static bool is_t_spin(const grid_t *g, const block_t *block)
+{
+    if (!g || !block || !block->shape)
+        return false;
+
+    /* Only T-pieces can perform T-spins */
+    if (block->shape->sig != T_PIECE_SIGNATURE)
+        return false;
+
+    /* Find the center of the T-piece to determine the corners.
+     * The T-piece has a 3x3 bounding box, so center is at offset (1,1)
+     */
+    int cx = block->offset.x + 1;
+    int cy = block->offset.y + 1;
+
+    /* Define the four corner positions relative to the grid */
+    int corners_occupied = 0;
+    if (cx > 0 && cy > 0 && move_cell_occupied(g, cx - 1, cy - 1))
+        corners_occupied++;
+    if (cx < g->width - 1 && cy > 0 && move_cell_occupied(g, cx + 1, cy - 1))
+        corners_occupied++;
+    if (cx > 0 && cy < g->height - 1 && move_cell_occupied(g, cx - 1, cy + 1))
+        corners_occupied++;
+    if (cx < g->width - 1 && cy < g->height - 1 &&
+        move_cell_occupied(g, cx + 1, cy + 1))
+        corners_occupied++;
+
+    return corners_occupied >= 3;
 }
 
 /* Fast shape coordinate checking for optimization
@@ -1374,6 +1470,52 @@ static int get_pillars(const grid_t *g)
  * - Score differences of 0.1-1.0 represent meaningful position quality gaps
  * - Large negative scores (-1000+) indicate terminal or near-terminal states
  */
+
+/* Dynamic crisis assessment based on multiple board conditions
+ *
+ * Analyzes board state comprehensively to determine crisis level:
+ * - Height pressure: Stack approaching danger zone
+ * - Structural problems: Holes and surface irregularities
+ * - Adaptive scaling: Returns multiplier from 1.0 (stable) upwards
+ *
+ * This enables context-aware strategy switching:
+ * - Clean boards: Focus on setup and optimization
+ * - Crisis conditions: Shift to survival and damage control
+ */
+static float get_crisis_level(const grid_t *g, const float *features)
+{
+    if (!g || !features)
+        return 1.0f;
+
+    /* Normalize metrics to 0-1 scale for severity assessment */
+    float height_ratio = features[FEATIDX_RELIEF_MAX] / (float) g->height;
+
+    /* Consider board with >25% holes relative to grid area as problematic */
+    float total_cells = (float) (g->width * g->height * 0.25f);
+    float hole_ratio = features[FEATIDX_GAPS] / total_cells;
+
+    /* Normalize bumpiness based on reasonable maximum surface variance */
+    int bumpiness = get_bumpiness(g);
+    float bump_ratio = bumpiness / (float) (g->width * 2.0f);
+
+    float crisis = 0.0f;
+
+    /* Height crisis: Start considering when stack > 60% of grid height */
+    if (height_ratio > 0.6f)
+        crisis += (height_ratio - 0.6f) * 1.5f;
+
+    /* Structural crisis: Significant holes indicate board degradation */
+    if (hole_ratio > 0.2f)
+        crisis += (hole_ratio - 0.2f);
+
+    /* Surface crisis: High bumpiness complicates piece placement */
+    if (bump_ratio > 0.5f)
+        crisis += (bump_ratio - 0.5f);
+
+    /* Return multiplier scaling from 1.0 (no crisis) upwards */
+    return 1.0f + crisis;
+}
+
 /* Core evaluation function with optional piece-aware caching */
 static float eval_grid_with_context(const grid_t *g,
                                     const float *weights,
@@ -1412,10 +1554,13 @@ static float eval_grid_with_context(const grid_t *g,
     for (int i = 0; i < N_FEATIDX; i++)
         score += features[i] * weights[i];
 
-    /* Phase 2: Apply structural penalties (cached for performance) */
-    score -= get_hole_penalty(g);                  /* Bury penalty */
-    score -= BUMPINESS_PENALTY * get_bumpiness(g); /* Surface roughness */
-    score -= WELL_PENALTY * get_well_depth(g);     /* Deep column penalty */
+    /* Phase 2: Apply adaptive structural penalties based on crisis assessment
+     */
+    float crisis_multiplier = get_crisis_level(g, features);
+    score -= get_hole_penalty(g) * crisis_multiplier; /* Bury penalty */
+    score -= BUMPINESS_PENALTY * get_bumpiness(g) *
+             crisis_multiplier;                /* Surface roughness */
+    score -= WELL_PENALTY * get_well_depth(g); /* Deep column penalty */
 
     /* Transition penalties (Dellacherie heuristic for boundary analysis) */
     int row_trans, col_trans;
@@ -1777,12 +1922,21 @@ static float ab_search_snapshot(grid_t *working_grid,
         if (!snap.needs_full_restore)
             depth_stats.snapshot_efficiency += 1.0f;
 
+        /* Extend search depth for significant line clears */
+        int next_depth = depth - 1;
+        if (lines >= 2 && depth < MAX_SEARCH_DEPTH)
+            next_depth = depth; /* Extend search by not decrementing depth */
+
         /* Recurse with alpha-beta bounds */
         float score =
-            ab_search_snapshot(working_grid, shapes, weights, depth - 1,
+            ab_search_snapshot(working_grid, shapes, weights, next_depth,
                                piece_index + 1, alpha, beta);
 
-        score += lines * LINE_CLEAR_BONUS;
+        score += powf(lines, 2) * LINE_CLEAR_BONUS;
+
+        /* T-spin bonus: reward T-spins that clear lines */
+        if (lines > 0 && is_t_spin(working_grid, &blk))
+            score += T_SPIN_BONUS * lines; /* Scale bonus by lines cleared */
 
         /* Efficient rollback using snapshot system */
         grid_rollback(working_grid, &snap);
@@ -1872,7 +2026,18 @@ static void tabu_reset(void)
 }
 #endif
 
-/* Snapshot-based search for best move with performance tracking */
+/* Iterative Deepening Search with Principal Variation Tracking
+ *
+ * Performs successive searches from depth 1 to target depth.
+ * Each iteration refines move ordering using results from previous depths,
+ * dramatically improving alpha-beta pruning effectiveness.
+ *
+ * Benefits:
+ * - Better move ordering from shallower searches reduces nodes evaluated
+ * - Can return best move at any time if interrupted
+ * - Principal variation from each depth improves next iteration
+ * - History and killer tables build up progressively
+ */
 static bool search_best_snapshot(const grid_t *grid,
                                  const shape_stream_t *stream,
                                  const float *weights,
@@ -1893,8 +2058,8 @@ static bool search_best_snapshot(const grid_t *grid,
     int well_col = -1;
     bool tetris_ready = grid_is_tetris_ready(grid, &well_col);
 
-    /* Dynamic depth decision */
-    int search_depth = dynamic_search_depth(grid);
+    /* Dynamic depth decision - this is our maximum depth */
+    int max_search_depth = dynamic_search_depth(grid);
 
     float current_best_score = WORST_SCORE;
     shape_t *shape = shape_stream_peek(stream, 0);
@@ -1996,17 +2161,38 @@ static bool search_best_snapshot(const grid_t *grid,
             float position_score = eval_shallow_with_context(
                                        working_grid, weights, test_block->shape,
                                        test_block->rot, test_block->offset.x) +
-                                   lines_cleared * LINE_CLEAR_BONUS;
+                                   powf(lines_cleared, 2) * LINE_CLEAR_BONUS;
 
-            /* Well-blocking penalty */
+            /* T-spin bonus: reward T-spins that clear lines */
+            if (lines_cleared > 0 && is_t_spin(working_grid, test_block))
+                position_score += T_SPIN_BONUS * lines_cleared;
+
+            /* Enhanced well-blocking penalties */
             if (tetris_ready) {
-                int piece_left = column;
-                int piece_right = column + shape->rot_wh[rotation].x - 1;
-                bool is_I_piece = (shape->rot_wh[0].x == 4);
+                bool is_I_piece = (test_block->shape->rot_wh[0].x == 4);
+                if (!is_I_piece) {
+                    /* Check if the piece was placed in the well column */
+                    int piece_left = test_block->offset.x;
+                    int piece_right =
+                        piece_left +
+                        test_block->shape->rot_wh[test_block->rot].x - 1;
 
-                if (!is_I_piece && well_col >= piece_left &&
-                    well_col <= piece_right)
-                    position_score -= WELL_BLOCK_PENALTY;
+                    if (piece_right >= well_col && piece_left <= well_col) {
+                        /* The piece is blocking the well. Apply a heavy penalty
+                         */
+                        int well_depth = working_grid->height -
+                                         working_grid->relief[well_col];
+                        position_score -= WELL_BLOCK_BASE_PENALTY;
+                        position_score -= WELL_BLOCK_DEPTH_FACTOR * well_depth;
+
+                        /* Additional penalty if piece makes well inaccessible
+                         */
+                        if (!grid_is_well_accessible(working_grid, well_col,
+                                                     1)) {
+                            position_score -= WELL_ACCESS_BLOCK_PENALTY;
+                        }
+                    }
+                }
             }
 
             /* Store candidate */
@@ -2038,42 +2224,14 @@ static bool search_best_snapshot(const grid_t *grid,
 
     beam_stats.positions_evaluated += beam_count;
 
-    /* Phase 2: Beam search - Deep analysis of promising candidates
+    /* Phase 2: Iterative Deepening with Beam Search
      *
-     * Beam search algorithm:
-     *
-     * Beam search is a bounded breadth-first search that maintains only the
-     * K most promising candidates at each level, dramatically reducing search
-     * space while preserving solution quality.
-     *
-     * Algorithm steps:
-     * 1. Candidate selection: Sort all positions by shallow evaluation score
-     * 2. Beam pruning: Keep only top K candidates (K = adaptive beam size)
-     * 3. Deep evaluation: Apply full minimax search to selected candidates
-     * 4. Best selection: Choose candidate with highest deep search score
-     *
-     * Complexity analysis:
-     * - Without beam: O(B^D) where B=branching factor, D=depth
-     * - With beam: O(K×D×B) where K=beam size << B^(D-1)
-     * - Typical reduction: ~95% fewer nodes evaluated
-     *
-     * Adaptive beam sizing:
-     * - Normal play: BEAM_SIZE = 8 candidates
-     * - Crisis mode: BEAM_SIZE_MAX = 16 candidates (when stacks near ceiling)
-     * - Adapts to game state complexity automatically
-     *
-     * Selection strategy:
-     * - Simple selection sort (optimal for small beam sizes)
-     * - Stable sort preserves equal-score move ordering
-     * - In-place sorting minimizes memory allocation overhead
-     *
-     * Deep search integration:
-     * - Each beam candidate triggers full alpha-beta minimax
-     * - Tighter alpha bounds improve pruning (start at 90% of current best)
-     * - Snapshot system enables efficient position undo after search
+     * Iterative Deepening Depth-First Search (IDDFS) Algorithm:
+     * Instead of searching directly to the target depth, we perform
+     * successive searches: depth 1, then 2, then 3, up to max_search_depth.
      */
-    if (search_depth > 1 && beam_count > 0) {
-        /* Candidate selection: Sort by shallow evaluation quality */
+    if (max_search_depth > 1 && beam_count > 0) {
+        /* Sort candidates by shallow evaluation for beam selection */
         int effective_beam_size = MIN(beam_count, adaptive_beam_size);
         for (int i = 0; i < effective_beam_size; i++) {
             int best_idx = i;
@@ -2088,51 +2246,108 @@ static bool search_best_snapshot(const grid_t *grid,
             }
         }
 
-        /* Deep minimax search on selected beam candidates */
-        for (int i = 0; i < effective_beam_size; i++) {
-            beam_candidate_t *candidate = &beam[i];
+        /* Initialize time management for iterative deepening */
+        time_manager_init(DEFAULT_TIME_LIMIT_MS);
 
-            /* Recreate the candidate position for deep search */
-            test_block->rot = candidate->rot;
-            test_block->offset.x = candidate->col;
-            test_block->offset.y = elevated_y;
-
-            grid_block_drop(working_grid, test_block);
-            grid_snapshot_t snap;
-            int lines_cleared =
-                grid_apply_block(working_grid, test_block, &snap);
-            depth_stats.snapshots_used++;
-
-            /* Alpha-beta minimax with optimized initial bounds */
-            float alpha = current_best_score *
-                          0.9f; /* Aggressive alpha for better pruning */
-            float deep_score =
-                ab_search_snapshot(working_grid, stream, weights,
-                                   search_depth - 1, 1, alpha, FLT_MAX) +
-                lines_cleared * LINE_CLEAR_BONUS;
-
-            /* Apply strategic penalties specific to candidate position */
-            if (tetris_ready) {
-                int pl = candidate->col;
-                int pr = pl + shape->rot_wh[candidate->rot].x - 1;
-                bool is_I_piece = (shape->rot_wh[0].x == 4);
-                if (!is_I_piece && well_col >= pl && well_col <= pr)
-                    deep_score -= WELL_BLOCK_PENALTY;
+        /* ITERATIVE DEEPENING: Search progressively deeper */
+        for (int current_depth = 1; current_depth <= max_search_depth;
+             current_depth++) {
+            /* Check time limit before starting new depth */
+            if (time_manager_should_stop()) {
+                time_manager.early_terminations++;
+                break; /* Return best move found so far */
             }
 
-            /* Update global best if this candidate surpasses current leader */
-            if (deep_score > current_best_score) {
-                current_best_score = deep_score;
-                output->rot = candidate->rot;
-                output->col = candidate->col;
-                beam_stats.beam_hits++;
+            /* Clear statistics for this iteration */
+            int iteration_nodes = move_ordering.stats.total_nodes;
+
+            /* Search each beam candidate at current depth */
+            for (int i = 0; i < effective_beam_size; i++) {
+                /* Check time during search */
+                if (time_manager_should_stop()) {
+                    time_manager.early_terminations++;
+                    goto search_complete; /* Double break */
+                }
+
+                beam_candidate_t *candidate = &beam[i];
+
+                /* Recreate the candidate position */
+                test_block->rot = candidate->rot;
+                test_block->offset.x = candidate->col;
+                test_block->offset.y = elevated_y;
+
+                grid_block_drop(working_grid, test_block);
+                grid_snapshot_t snap;
+                int lines_cleared =
+                    grid_apply_block(working_grid, test_block, &snap);
+                depth_stats.snapshots_used++;
+
+                /* Alpha-beta search at current iteration depth */
+                float alpha = current_best_score * 0.9f;
+                float deep_score =
+                    ab_search_snapshot(working_grid, stream, weights,
+                                       current_depth - 1, 1, alpha, FLT_MAX) +
+                    powf(lines_cleared, 2) * LINE_CLEAR_BONUS;
+
+                /* T-spin bonus: reward T-spins that clear lines */
+                if (lines_cleared > 0 && is_t_spin(working_grid, test_block))
+                    deep_score += T_SPIN_BONUS * lines_cleared;
+
+                /* Apply enhanced strategic penalties */
+                if (tetris_ready) {
+                    int pl = candidate->col;
+                    int pr = pl + shape->rot_wh[candidate->rot].x - 1;
+                    bool is_I_piece = (shape->rot_wh[0].x == 4);
+                    if (!is_I_piece && well_col >= pl && well_col <= pr) {
+                        /* The piece is blocking the well. Apply a heavy penalty
+                         */
+                        int well_depth = working_grid->height -
+                                         working_grid->relief[well_col];
+                        deep_score -= WELL_BLOCK_BASE_PENALTY;
+                        deep_score -= WELL_BLOCK_DEPTH_FACTOR * well_depth;
+
+                        /* Check accessibility after this move */
+                        if (!grid_is_well_accessible(working_grid, well_col,
+                                                     1)) {
+                            deep_score -= WELL_ACCESS_BLOCK_PENALTY;
+                        }
+                    }
+                }
+
+                /* Update best move if improved */
+                if (deep_score > current_best_score) {
+                    current_best_score = deep_score;
+                    output->rot = candidate->rot;
+                    output->col = candidate->col;
+
+                    /* Update principal variation for next iteration */
+                    move_ordering.principal_variation.moves[0] = candidate->col;
+                    move_ordering.principal_variation.moves[1] = candidate->rot;
+                    move_ordering.principal_variation.length = 2;
+                    move_ordering.principal_variation.valid = true;
+
+                    if (current_depth == max_search_depth)
+                        beam_stats.beam_hits++;
+                }
+
+                /* Restore position */
+                grid_rollback(working_grid, &snap);
+                depth_stats.rollbacks_used++;
             }
 
-            /* Efficient position restoration using snapshot system */
-            grid_rollback(working_grid, &snap);
-            depth_stats.rollbacks_used++;
+            /* Track nodes evaluated at this depth for analysis */
+            int nodes_this_depth =
+                move_ordering.stats.total_nodes - iteration_nodes;
+            (void) nodes_this_depth; /* Prevent unused variable warning */
+
+            /* Mark depth as completed */
+            time_manager.completed_depths = current_depth;
         }
     }
+
+search_complete:
+    /* Reset time manager for next search */
+    time_manager_reset();
 
     /* Release grid back to pool if it was acquired */
     if (pool_grid != &move_cache.working_grid)
