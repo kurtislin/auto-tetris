@@ -24,59 +24,98 @@
  */
 #define SEARCH_DEPTH 3
 
-/* Beam search configuration */
-#define BEAM_SIZE 8        /* Keep top 8 candidates for deep search */
-#define BEAM_SIZE_MAX 16   /* Maximum beam size under critical conditions */
+/* Balanced beam search configuration */
+#define BEAM_SIZE 10       /* Good balance of strength and speed */
+#define BEAM_SIZE_MAX 14   /* Reasonable crisis expansion */
 #define DANGER_THRESHOLD 4 /* Stack height threshold for danger mode */
 
 /* Early pruning thresholds */
 /* Rows from top to be considered critical */
 #define CRITICAL_HEIGHT_THRESHOLD 3
-/* Rows from top for aggressive pruning */
+/* Rows from top for early pruning */
 #define TOPOUT_PREVENTION_THRESHOLD 2
 
-/* Reward per cleared row */
-#define LINE_CLEAR_BONUS 0.75f
+/* Enhanced reward system strongly favoring multi-line clears */
+#define LINE_CLEAR_BONUS 1.0f     /* Base line clear reward */
+#define DOUBLE_CLEAR_BONUS 4.0f   /* 4x bonus for 2-line clear */
+#define TRIPLE_CLEAR_BONUS 12.0f  /* 12x bonus for 3-line clear */
+#define TETRIS_BONUS 18.0f        /* 18x bonus for 4-line Tetris */
+#define CRISIS_CLEAR_BONUS 2.5f   /* Much higher crisis bonus */
+#define HOLE_REDUCTION_BONUS 3.0f /* Strong hole reduction incentive */
+#define SURVIVAL_BONUS 1.0f       /* Doubled survival bonus */
+/* Huge bonus for clearing in desperate situations */
+#define DESPERATE_CLEAR_BONUS 5.0f
+
+/* Tetris setup and well management - strongly incentivized */
+#define TETRIS_SETUP_HEIGHT 16   /* Ideal height for Tetris setups */
+#define TETRIS_WELL_BONUS 6.0f   /* Stronger bonus for maintaining clean well */
+#define I_PIECE_WELL_BONUS 10.0f /* Major bonus for I-piece in well */
+#define TETRIS_READY_BONUS 8.0f  /* Higher bonus when board is Tetris-ready */
 
 /* T-spin detection and bonus */
 #define T_PIECE_SIGNATURE 0x36 /* Computed signature for T-piece */
 #define T_SPIN_BONUS 8.0f      /* Reward for successful T-spin */
 
-/* Penalty per hole (empty cell with filled cell above) */
-#define HOLE_PENALTY 0.8f       /* base cost (reduced; depth adds more) */
+/* Combo scoring bonus */
+#define COMBO_BONUS 0.5f /* Bonus per combo level */
+
+/* Unified hole penalty system */
+#define HOLE_PENALTY 0.7f       /* base cost per hole */
 #define HOLE_DEPTH_WEIGHT 0.05f /* extra cost per covered cell above a hole */
 
-/* Penalty per unit of bumpiness (surface roughness) */
-#define BUMPINESS_PENALTY 0.08f
+/* Surface structure penalties */
+#define BUMPINESS_PENALTY 0.02f /* surface roughness */
+#define WELL_PENALTY 0.15f      /* deep column penalty */
+#define CREVICE_PENALTY 0.20f   /* narrow gap penalty */
 
-/* Penalty per cell of cumulative well depth */
-#define WELL_PENALTY 0.35f
-
-/* Penalty per pillar (surrounded empty spaces >= 2 height) */
-#define PILLAR_PENALTY 0.25f
+/* Penalty per overhang (blocks extending over empty spaces) */
+#define OVERHANG_PENALTY 0.2f
 
 /* Transition penalties - Dellacherie & Böhm heuristic */
 #define ROW_TRANS_PENALTY 0.18f /* per horizontal transition */
 #define COL_TRANS_PENALTY 0.18f /* per vertical transition */
 
-/* Height penalty - encourage keeping stacks low for reaction time */
-#define HEIGHT_PENALTY 0.04f /* per cell of cumulative height */
+/* Height management optimized for Tetris setups */
+#define HEIGHT_PENALTY 0.015f /* Minimal penalty */
+/* Increased bonus for strategic Tetris-ready building */
+#define STRATEGIC_HEIGHT_BONUS 0.50f
+#define STRATEGIC_HEIGHT_START 10 /* Lower threshold for Tetris setup */
+#define STRATEGIC_HEIGHT_CAP 17   /* cap remains same */
+#define TETRIS_BUILD_HEIGHT 14    /* Optimal height for Tetris preparation */
 
-/* Tall-stack bonus - encourage building up for Tetrises */
-#define STACK_HIGH_BONUS 0.40f /* reward per row above threshold */
-#define HIGH_STACK_START 10    /* bonus starts when height >= 10 */
-#define HIGH_STACK_CAP 17      /* bonus stops growing above height */
-
-/* Well-blocking penalties for non-I pieces on Tetris-ready boards */
-#define WELL_BLOCK_BASE_PENALTY 1.0f   /* base penalty for blocking any well */
-#define WELL_BLOCK_DEPTH_FACTOR 0.5f   /* penalty per row of well depth */
-#define WELL_ACCESS_BLOCK_PENALTY 3.0f /* making well inaccessible */
+/* Well management for Tetris opportunities - strong protection */
+#define WELL_BLOCK_BASE_PENALTY 3.0f /* Heavy penalty for blocking wells */
+#define WELL_BLOCK_DEPTH_FACTOR                  \
+    1.0f /* Higher penalty per row of well depth \
+          */
+#define WELL_ACCESS_BLOCK_PENALTY \
+    8.0f /* Severe penalty for blocking well access */
+#define WELL_MAINTENANCE_BONUS 2.0f /* Strong bonus for keeping wells clear */
+#define PERFECT_WELL_DEPTH 4        /* Ideal well depth for Tetris */
 
 /* Terminal position penalty when stack hits ceiling */
-#define TOPOUT_PENALTY 10000.0f
+#define TOPOUT_PENALTY 50000.0f
 
-/* Adaptive search depth configuration */
-#define EARLY_GAME_PIECES 2500 /* Use faster search for first N pieces */
+/* Defensive configuration for maximum survival */
+#define EARLY_GAME_PIECES 1000      /* Very short early game period */
+#define CRISIS_MODE_THRESHOLD 10    /* Ultra-low crisis threshold */
+#define EMERGENCY_MODE_THRESHOLD 13 /* Much lower emergency threshold */
+#define DESPERATE_MODE_THRESHOLD 15 /* Lower desperate mode threshold */
+#define PANIC_MODE_THRESHOLD 17     /* New panic mode for extreme situations */
+
+/* Advanced pattern recognition for crisis scenarios */
+#define CRITICAL_HOLE_THRESHOLD 5  /* Ultra-low hole threshold for emergency */
+#define VALLEY_DEPTH_THRESHOLD 6   /* Deep valley that needs filling */
+#define PILLAR_HEIGHT_THRESHOLD 4  /* Isolated column height difference */
+#define SURFACE_CHAOS_THRESHOLD 8  /* Surface irregularity threshold */
+#define VALLEY_FILL_BONUS 1.0f     /* Reward for filling deep valleys */
+#define EMERGENCY_CLEAR_BONUS 3.0f /* Huge bonus for clearing in emergency */
+#define PATTERN_MATCH_BONUS 1.5f   /* Bonus for matching crisis patterns */
+
+/* Human-to-AI handoff detection and recovery */
+#define HANDOFF_CHAOS_THRESHOLD 12   /* detecting chaotic handoff state */
+#define HANDOFF_RECOVERY_BONUS 2.0f  /* Extra bonus for recovery moves */
+#define INITIAL_ASSESSMENT_PIECES 20 /* Pieces to assess handoff difficulty */
 
 /* Time management for iterative deepening */
 #define DEFAULT_TIME_LIMIT_MS 100 /* Default time limit in milliseconds */
@@ -103,7 +142,8 @@ struct metrics_entry {
     uint16_t row_trans;  /* Cached row transitions */
     uint16_t col_trans;  /* Cached column transitions */
     uint16_t well_depth; /* Cached well depth */
-    uint16_t pillars;    /* Cached pillar count */
+    uint16_t crevices;   /* Cached crevice count */
+    uint16_t overhangs;  /* Cached overhang count */
 };
 
 #if SEARCH_DEPTH >= 2
@@ -116,7 +156,7 @@ static const float default_weights[N_FEATIDX] = {
     [FEATIDX_RELIEF_MAX] = -1.5285f, [FEATIDX_RELIEF_AVG] = -1.8356f,
     [FEATIDX_RELIEF_VAR] = -0.4441f, [FEATIDX_GAPS] = -2.1800f,
     [FEATIDX_OBS] = -1.2554f,        [FEATIDX_DISCONT] = -0.5567f,
-    [FEATIDX_PILLARS] = -0.6381f,
+    [FEATIDX_CREVICES] = -0.6381f,
 };
 
 
@@ -174,6 +214,7 @@ typedef struct {
 typedef struct {
     int depth_2_selections;    /* Times optimized search was used */
     int depth_3_selections;    /* Times full search was used */
+    int depth_4_selections;    /* Times emergency deep search was used */
     int total_evaluations;     /* Total search invocations */
     int max_height_seen;       /* Highest stack observed */
     int piece_count;           /* Current piece number */
@@ -274,14 +315,17 @@ static move_globals_t G = {0};
 
 /* Forward declarations */
 static void cache_cleanup(void);
-static int get_pillars(const grid_t *g);
+static int get_crevices(const grid_t *g);
+static int count_complete_rows(const grid_t *g, int min_row, int max_row);
+static float evaluate_tetris_potential(const grid_t *g);
 static float ab_search_snapshot(grid_t *working_grid,
                                 const shape_stream_t *shapes,
                                 const float *weights,
                                 int depth,
                                 int piece_index,
                                 float alpha,
-                                float beta);
+                                float beta,
+                                int combo_count);
 
 /* Time management functions */
 static void time_manager_init(int time_limit_ms);
@@ -527,7 +571,7 @@ static inline bool is_block_coordinate(const block_t *b, int x, int y)
     int base_x = b->offset.x;
     int base_y = b->offset.y;
 
-    /* Check all cells with optimized loop - reduced variable assignments */
+    /* Check all cells with optimized loop */
     for (int i = 0; i < MAX_BLOCK_LEN; i++) {
         int cell_x = coords[i][0];
         int cell_y = coords[i][1];
@@ -657,21 +701,27 @@ static bool should_skip_evaluation(const grid_t *g, const block_t *test_block)
         cached_grid_hash = g->hash;
     }
 
-    /* Stage 3: Critical height filtering */
+    /* Stage 3: Critical height filtering - be more careful in crisis */
     if (max_relief >= g->height - CRITICAL_HEIGHT_THRESHOLD) {
+        /* In crisis mode, be more lenient with filtering */
+        bool in_emergency = (max_relief >= EMERGENCY_MODE_THRESHOLD);
+
         /* Check if piece would fit at all */
         if (landing_col >= 0 && landing_col < g->width) {
             int estimated_landing = g->relief[landing_col] + piece_height;
-            if (estimated_landing >= g->height) {
+            /* Only filter if it definitely won't fit */
+            if (estimated_landing >= g->height && !in_emergency) {
                 filter_stats.height_filtered++;
                 return true;
             }
         }
 
-        /* For emergency situations, only allow helpful moves */
-        if (max_relief >= g->height - TOPOUT_PREVENTION_THRESHOLD) {
+        /* In emergency, consider all moves that might help */
+        if (max_relief >= g->height - TOPOUT_PREVENTION_THRESHOLD &&
+            !in_emergency) {
             int piece_top = g->relief[landing_col] + piece_height;
-            if (piece_top < max_relief - 1) {
+            /* Only filter moves that make things worse */
+            if (piece_top > max_relief) {
                 filter_stats.height_filtered++;
                 return true;
             }
@@ -696,25 +746,30 @@ static bool should_skip_evaluation(const grid_t *g, const block_t *test_block)
         }
     }
 
-    /* Stage 5: ai/ai.c inspired quick viability heuristics */
+    /* Stage 5: Structural viability - adjusted for crisis */
+
+    /* Check if we're in crisis mode */
+    bool in_crisis = (max_relief >= CRISIS_MODE_THRESHOLD);
 
     /* Skip moves that create obvious structural problems */
-    if (landing_col > 0 && landing_col < g->width - 1) {
+    if (landing_col > 0 && landing_col < g->width - 1 && !in_crisis) {
         int left_height = g->relief[landing_col - 1] + 1;
         int center_height = g->relief[landing_col] + piece_height;
         int right_height = g->relief[landing_col + 1] + 1;
 
-        /* Skip moves that create deep isolated wells */
+        /* In crisis, be more lenient with structural issues */
+        int well_depth_threshold = in_crisis ? 5 : 3;
         int well_depth = MIN(left_height, right_height) - center_height;
-        if (well_depth > 3) {
+        if (well_depth > well_depth_threshold) {
             filter_stats.structure_filtered++;
             return true;
         }
 
         /* Skip moves that create extreme height differences */
+        int variance_threshold = in_crisis ? g->height / 2 : g->height / 3;
         int height_variance = abs(left_height - center_height) +
                               abs(center_height - right_height);
-        if (height_variance > g->height / 3) {
+        if (height_variance > variance_threshold) {
             filter_stats.structure_filtered++;
             return true;
         }
@@ -725,19 +780,48 @@ static bool should_skip_evaluation(const grid_t *g, const block_t *test_block)
     bool is_O_piece = (test_block->shape->rot_wh[0].x == 2 &&
                        test_block->shape->rot_wh[0].y == 2);
 
-    /* I-pieces: prefer columns where they can clear lines or fill wells */
-    if (is_I_piece && test_block->rot == 0) { /* Horizontal I */
-        bool can_clear_line = false;
-        for (int x = landing_col; x < landing_col + 4 && x < g->width; x++) {
-            if (x >= 0 && g->relief[x] >= g->height * 0.7f) {
-                can_clear_line = true;
-                break;
+    /* I-pieces: Special handling for Tetris opportunities */
+    if (is_I_piece) {
+        int well_col = -1;
+        bool tetris_ready = grid_is_tetris_ready(g, &well_col);
+
+        if (tetris_ready) {
+            /* When Tetris-ready, strongly prefer vertical I in well */
+            if (test_block->rot == 1) { /* Vertical I */
+                if (landing_col != well_col) {
+                    /* Filter out vertical I-pieces not in the well */
+                    filter_stats.piece_filtered++;
+                    return true;
+                }
+            } else if (test_block->rot == 0) { /* Horizontal I */
+                /* Allow horizontal I only if it helps clear lines */
+                bool helps_clear = false;
+                for (int x = landing_col; x < landing_col + 4 && x < g->width;
+                     x++) {
+                    if (x >= 0 && g->relief[x] >= g->height - 4) {
+                        helps_clear = true;
+                        break;
+                    }
+                }
+                if (!helps_clear && max_relief > g->height * 0.6f) {
+                    filter_stats.piece_filtered++;
+                    return true;
+                }
             }
-        }
-        /* In mid-to-late game, prioritize I-pieces for line clearing */
-        if (max_relief > g->height / 2 && !can_clear_line) {
-            filter_stats.piece_filtered++;
-            return true;
+        } else if (test_block->rot == 0) { /* Horizontal I without well */
+            bool can_clear_line = false;
+            for (int x = landing_col; x < landing_col + 4 && x < g->width;
+                 x++) {
+                if (x >= 0 && g->relief[x] >= g->height * 0.7f) {
+                    can_clear_line = true;
+                    break;
+                }
+            }
+            /* In mid-to-late game, prioritize I-pieces for line clearing */
+            if (max_relief > g->height / 2 && !can_clear_line) {
+                filter_stats.piece_filtered++;
+                return true;
+            }
         }
     }
 
@@ -781,30 +865,62 @@ static inline int dynamic_search_depth(const grid_t *g)
     depth_stats.piece_count++;
     depth_stats.total_evaluations++;
 
-    /* Use full depth for critical late-game decisions */
-    if (depth_stats.piece_count > EARLY_GAME_PIECES) {
-        depth_stats.depth_3_selections++;
-        return SEARCH_DEPTH;
-    }
-
-    /* Early game: optimize based on stack height */
+    /* Fast height and hole calculation only */
     int max_h = 0;
-    for (int x = 0; x < g->width; x++)
+    int hole_count = 0;
+
+    for (int x = 0; x < g->width; x++) {
         if (g->relief[x] > max_h)
             max_h = g->relief[x];
+        hole_count += g->gaps[x];
+    }
+
+    /* Skip surface variance calculation for speed */
 
     /* Update height statistics */
     if (max_h > depth_stats.max_height_seen)
         depth_stats.max_height_seen = max_h;
 
-    /* Use optimized search when stacks are manageable */
-    int threshold = (g->height * 9) / 10;
+    /* Crisis detection for deeper search. Use deeper search if the stack is
+     * very high, or if the stack is moderately high and riddled with holes.
+     */
+    if (max_h >= EMERGENCY_MODE_THRESHOLD ||
+        (hole_count > CRITICAL_HOLE_THRESHOLD &&
+         max_h >= CRISIS_MODE_THRESHOLD)) {
+        depth_stats.depth_4_selections++;
+        /* Emergency mode uses enhanced depth */
+        return MIN(SEARCH_DEPTH + 1, 4);
+    }
 
-    if (max_h < threshold) {
+    /* Crisis mode */
+    if (max_h >= CRISIS_MODE_THRESHOLD) {
+        /* Always use full depth in crisis - survival over speed */
+        depth_stats.depth_3_selections++;
+        return SEARCH_DEPTH;
+    }
+
+    /* Late game: Simple decisions */
+    if (depth_stats.piece_count > EARLY_GAME_PIECES) {
+        /* Only use full depth for severe problems */
+        if (hole_count > 12) {
+            depth_stats.depth_3_selections++;
+            return SEARCH_DEPTH;
+        }
+        /* Most late game uses fast search */
         depth_stats.depth_2_selections++;
         return 2;
     }
 
+    /* Normal mode: Prefer speed */
+    int threshold = (g->height * 4) / 5; /* Keep original threshold */
+
+    if (max_h < threshold && hole_count < 8) {
+        /* Clean board - use fast search */
+        depth_stats.depth_2_selections++;
+        return 2;
+    }
+
+    /* Default to standard depth */
     depth_stats.depth_3_selections++;
     return SEARCH_DEPTH;
 }
@@ -919,7 +1035,7 @@ static void calc_features(const grid_t *restrict g,
     features[FEATIDX_DISCONT] = discont;
     features[FEATIDX_GAPS] = gaps;
     features[FEATIDX_OBS] = obs;
-    features[FEATIDX_PILLARS] = (float) get_pillars(g);
+    features[FEATIDX_CREVICES] = (float) get_crevices(g);
 
     if (bump_out)
         *bump_out = bump;
@@ -1156,6 +1272,7 @@ static void order_moves_advanced(struct move_candidate *moves,
  * When falling_block is provided, skips counting holes that would be
  * filled by the current falling piece, providing more accurate evaluation.
  */
+/* Unified hole penalty calculation with proper caching */
 static float get_hole_penalty_with_block(const grid_t *g,
                                          const block_t *falling_block)
 {
@@ -1173,7 +1290,8 @@ static float get_hole_penalty_with_block(const grid_t *g,
     }
 
     /* Cache miss or with falling block - compute penalty */
-    int holes = 0, depth_sum = 0;
+    float total_penalty = 0.0f;
+
     for (int x = 0; x < g->width; x++) {
         int top = g->relief[x];
         if (top < 0 || g->gaps[x] == 0)
@@ -1185,24 +1303,23 @@ static float get_hole_penalty_with_block(const grid_t *g,
                 if (falling_block && is_block_coordinate(falling_block, x, y))
                     continue; /* Skip holes filled by falling block */
 
-                holes++;
-                depth_sum += (top - y);
+                int depth = top - y;
+                /* Single penalty calculation with depth weighting */
+                total_penalty +=
+                    HOLE_PENALTY * (1.0f + HOLE_DEPTH_WEIGHT * depth);
             }
         }
     }
-
-    float penalty = HOLE_PENALTY * (float) holes +
-                    HOLE_PENALTY * HOLE_DEPTH_WEIGHT * (float) depth_sum;
 
     /* Update cache entry only for grid-only calculations */
     if (!falling_block) {
         uint32_t idx = g->hash & METRICS_CACHE_MASK;
         struct metrics_entry *entry = &metrics_cache[idx];
         entry->grid_key = g->hash;
-        entry->hole_penalty = penalty;
+        entry->hole_penalty = total_penalty;
     }
 
-    return penalty;
+    return total_penalty;
 }
 
 /* Fast cached hole penalty with early exit on cache hit */
@@ -1336,18 +1453,18 @@ static int get_well_depth(const grid_t *g)
     return depth;
 }
 
-/* Fast cached pillar detection with early exit
+/* Fast cached crevice detection with early exit
  *
- * Detects structural weaknesses: pillars are surrounded empty spaces
- * that extend vertically for 2+ cells. These create hard-to-fill cavities
- * that limit future piece placement options.
+ * Detects narrow gaps (crevices) that are difficult to fill.
+ * These are columns significantly lower than both neighbors.
  *
- * A pillar forms when:
- * - Cell is empty
- * - Both left and right neighbors are filled (or at board edges)
- * - Pattern continues vertically for at least 2 consecutive cells
+ * A problematic crevice forms when:
+ * - Column is significantly lower than both neighbors
+ * - Gap is narrow (1-2 columns wide)
+ * - Contains holes that make filling more difficult
  */
-static int get_pillars_with_block(const grid_t *g, const block_t *falling_block)
+static int get_crevices_with_block(const grid_t *g,
+                                   const block_t *falling_block)
 {
     if (!g || !g->relief)
         return 0;
@@ -1359,62 +1476,139 @@ static int get_pillars_with_block(const grid_t *g, const block_t *falling_block)
 
         /* Cache hit - return immediately */
         if (entry->grid_key == g->hash)
-            return entry->pillars;
+            return entry->crevices;
     }
 
     /* Cache miss or with falling block - compute and store if cacheable */
-    int pillar_count = 0;
+    float crevice_penalty = 0.0f;
 
-    /* Ultra-fast approximation: count gaps in columns with high relief
-     * variance. This approximates pillar-like structures without full scanning.
+    /* Refined crevice detection: distinguish between manageable gaps
+     * and truly problematic narrow, deep crevices.
      * When falling_block is provided, skip cells it occupies.
      */
     for (int x = 1; x < g->width - 1; x++) {
-        /* Skip columns with no gaps */
-        if (g->gaps[x] <= 1)
-            continue;
-
         int left_height = g->relief[x - 1] + 1;
         int curr_height = g->relief[x] + 1;
         int right_height = g->relief[x + 1] + 1;
 
-        /* Simple heuristic: deep column surrounded by taller neighbors
-         * with multiple gaps suggests pillar-like structure.
-         */
-        if (curr_height < left_height - 1 && curr_height < right_height - 1 &&
-            g->gaps[x] >= 2) {
-            /* If falling block provided, check if it affects this column */
+        /* Check if this is a crevice (column lower than both neighbors) */
+        if (curr_height < left_height - 1 && curr_height < right_height - 1) {
+            /* Calculate the depth of the crevice */
+            int min_neighbor =
+                (left_height < right_height) ? left_height : right_height;
+            int depth = min_neighbor - curr_height;
+
+            float penalty = 0.0f;
+
+            /* Check if the crevice is 1-wide (most severe case)
+             * A 1-wide crevice is when both immediate neighbors are higher
+             */
+            bool is_one_wide = true;
+
+            /* Check if there is potential for the crevice to be wider */
+            if (x > 1 && g->relief[x - 2] + 1 <= curr_height)
+                is_one_wide = false; /* Left side has room */
+            if (x < g->width - 2 && g->relief[x + 2] + 1 <= curr_height)
+                is_one_wide = false; /* Right side has room */
+
+            if (is_one_wide) {
+                /* 1-wide crevices are very problematic, especially when deep */
+                penalty = depth * 1.5f;
+            } else {
+                /* Wider crevices are less severe as they're easier to fill */
+                penalty = depth * 0.5f;
+            }
+
+            /* Add extra penalty for any holes inside the crevice
+             * Holes in crevices are particularly bad as they're hard to clear
+             */
+            if (g->gaps[x] > 0)
+                penalty += g->gaps[x] * 1.2f;
+
+            /* If falling block provided, check if it helps fill this crevice */
             if (falling_block) {
-                bool block_affects_column = false;
-                for (int y = curr_height; y < left_height && y < right_height;
-                     y++) {
+                bool block_helps = false;
+                for (int y = curr_height; y < min_neighbor; y++) {
                     if (is_block_coordinate(falling_block, x, y)) {
-                        block_affects_column = true;
+                        block_helps = true;
                         break;
                     }
                 }
-                /* Reduce pillar penalty if falling block helps fill the gap */
-                if (block_affects_column)
-                    continue;
+                /* Reduce penalty if falling block helps fill the crevice */
+                if (block_helps)
+                    penalty *= 0.3f; /* Reduce penalty by 70% */
             }
-            pillar_count++;
+
+            crevice_penalty += penalty;
         }
     }
+
+    /* Convert float penalty to integer for compatibility */
+    /* Round to nearest int */
+    int crevice_count = (int) (crevice_penalty + 0.5f);
 
     /* Update cache entry only for grid-only calculations */
     if (!falling_block) {
         uint32_t idx = g->hash & METRICS_CACHE_MASK;
         struct metrics_entry *entry = &metrics_cache[idx];
         entry->grid_key = g->hash;
-        entry->pillars = (uint16_t) MIN(pillar_count, 65535);
+        entry->crevices = (uint16_t) MIN(crevice_count, 65535);
     }
 
-    return pillar_count;
+    return crevice_count;
 }
 
-static int get_pillars(const grid_t *g)
+static int get_crevices(const grid_t *g)
 {
-    return get_pillars_with_block(g, NULL);
+    return get_crevices_with_block(g, NULL);
+}
+
+/* Fast cached overhang detection with early exit
+ *
+ * Detects overhangs: blocks extending over empty spaces that create
+ * difficult-to-fill pockets. An overhang occurs when a filled cell has
+ * an empty cell directly below it, but is supported by filled cells
+ * on both bottom-left and bottom-right diagonals.
+ */
+static int get_overhangs(const grid_t *g)
+{
+    if (!g)
+        return 0;
+
+    uint32_t idx = g->hash & METRICS_CACHE_MASK;
+    struct metrics_entry *entry = &metrics_cache[idx];
+
+    /* Cache hit - return immediately */
+    if (entry->grid_key == g->hash)
+        return entry->overhangs;
+
+    /* Cache miss - compute and store */
+    int overhang_count = 0;
+    for (int x = 0; x < g->width; x++) {
+        for (int y = 1; y < g->height; y++) { /* Start from y=1 to check y-1 */
+            if (move_cell_occupied(g, x, y) &&
+                !move_cell_occupied(g, x, y - 1)) {
+                /* This cell is an overhang if the cell below it is empty, AND
+                 * its immediate left-bottom and right-bottom neighbors are
+                 * filled
+                 */
+                bool left_bottom_filled =
+                    (x == 0) ? true : move_cell_occupied(g, x - 1, y - 1);
+                bool right_bottom_filled =
+                    (x == g->width - 1) ? true
+                                        : move_cell_occupied(g, x + 1, y - 1);
+
+                if (left_bottom_filled && right_bottom_filled)
+                    overhang_count++;
+            }
+        }
+    }
+
+    /* Update cache entry */
+    entry->grid_key = g->hash;
+    entry->overhangs = (uint16_t) MIN(overhang_count, 65535);
+
+    return overhang_count;
 }
 
 /* AI evaluation function: Multi-heuristic position assessment
@@ -1439,7 +1633,7 @@ static int get_pillars(const grid_t *g)
  *    - Height statistics (max, average, variance) measure stack distribution
  *    - Gap counting identifies holes that are difficult to fill
  *    - Discontinuity measurement penalizes uneven surfaces
- *    - Pillar detection finds isolated columns creating future problems
+ *    - Crevice detection finds narrow gaps creating future problems
  *
  * 4. Weighted scoring: Linear combination with evolved coefficients
  *    - Each feature multiplied by genetically optimized weight
@@ -1471,6 +1665,103 @@ static int get_pillars(const grid_t *g)
  * - Large negative scores (-1000+) indicate terminal or near-terminal states
  */
 
+/* Count complete rows in a height range for Tetris potential analysis */
+static int count_complete_rows(const grid_t *g, int min_row, int max_row)
+{
+    if (!g)
+        return 0;
+
+    int complete_rows = 0;
+    int almost_complete = 0;
+
+    /* Clamp range to valid bounds */
+    min_row = MAX(0, min_row);
+    max_row = MIN(g->height - 1, max_row);
+
+    for (int y = min_row; y <= max_row; y++) {
+        /* Use bit counting for efficiency */
+        uint64_t row_bits = g->rows[y] & g->full_mask;
+        int filled_cells = POPCOUNT(row_bits);
+
+        if (filled_cells == g->width) {
+            complete_rows++;
+        } else if (filled_cells == g->width - 1) {
+            /* Row needs just one block - potential for Tetris */
+            almost_complete++;
+        }
+    }
+
+    /* Return weighted score: complete rows plus partial credit for almost
+     * complete */
+    return complete_rows * 2 + almost_complete;
+}
+
+/* Evaluate the board's potential for achieving a Tetris */
+static float evaluate_tetris_potential(const grid_t *g)
+{
+    if (!g || !g->relief)
+        return 0.0f;
+
+    float tetris_score = 0.0f;
+    int well_col = -1;
+    bool has_well = grid_is_tetris_ready(g, &well_col);
+
+    if (has_well) {
+        /* Strong bonus for having a clean well */
+        tetris_score += TETRIS_WELL_BONUS;
+
+        /* Check well depth and quality */
+        int well_depth = g->height - g->relief[well_col] - 1;
+        if (well_depth >= PERFECT_WELL_DEPTH) {
+            /* Perfect depth for Tetris */
+            tetris_score += TETRIS_READY_BONUS;
+
+            /* Check how many rows are ready to clear */
+            int ready_rows =
+                count_complete_rows(g, g->relief[well_col],
+                                    g->relief[well_col] + PERFECT_WELL_DEPTH);
+
+            if (ready_rows >= 3) {
+                /* Almost ready for Tetris! */
+                tetris_score += TETRIS_BONUS * 0.5f;
+            }
+        }
+
+        /* Penalty if well is too shallow */
+        if (well_depth < 2) {
+            tetris_score -= 2.0f;
+        }
+    } else {
+        /* Look for potential well locations */
+        for (int x = 0; x < g->width; x++) {
+            bool could_be_well = true;
+
+            /* Check if column could become a well */
+            if (x == 0) {
+                /* Leftmost column */
+                if (g->relief[1] < g->relief[0] + 2)
+                    could_be_well = false;
+            } else if (x == g->width - 1) {
+                /* Rightmost column */
+                if (g->relief[g->width - 2] < g->relief[x] + 2)
+                    could_be_well = false;
+            } else {
+                /* Middle columns */
+                if (g->relief[x - 1] < g->relief[x] + 2 ||
+                    g->relief[x + 1] < g->relief[x] + 2)
+                    could_be_well = false;
+            }
+
+            if (could_be_well && g->gaps[x] == 0) {
+                /* Potential well location with no holes */
+                tetris_score += 0.5f;
+            }
+        }
+    }
+
+    return tetris_score;
+}
+
 /* Dynamic crisis assessment based on multiple board conditions
  *
  * Analyzes board state comprehensively to determine crisis level:
@@ -1487,41 +1778,25 @@ static float get_crisis_level(const grid_t *g, const float *features)
     if (!g || !features)
         return 1.0f;
 
-    /* Normalize metrics to 0-1 scale for severity assessment */
     float height_ratio = features[FEATIDX_RELIEF_MAX] / (float) g->height;
+    float holes = features[FEATIDX_GAPS];
 
-    /* Consider board with >25% holes relative to grid area as problematic */
-    float total_cells = (float) (g->width * g->height * 0.25f);
-    float hole_ratio = features[FEATIDX_GAPS] / total_cells;
+    /* 3-level crisis model */
+    if (height_ratio > 0.8f || holes > 10)
+        return 3.0f; /* Emergency */
 
-    /* Normalize bumpiness based on reasonable maximum surface variance */
-    int bumpiness = get_bumpiness(g);
-    float bump_ratio = bumpiness / (float) (g->width * 2.0f);
+    if (height_ratio > 0.6f || holes > 6)
+        return 2.0f; /* Crisis */
 
-    float crisis = 0.0f;
-
-    /* Height crisis: Start considering when stack > 60% of grid height */
-    if (height_ratio > 0.6f)
-        crisis += (height_ratio - 0.6f) * 1.5f;
-
-    /* Structural crisis: Significant holes indicate board degradation */
-    if (hole_ratio > 0.2f)
-        crisis += (hole_ratio - 0.2f);
-
-    /* Surface crisis: High bumpiness complicates piece placement */
-    if (bump_ratio > 0.5f)
-        crisis += (bump_ratio - 0.5f);
-
-    /* Return multiplier scaling from 1.0 (no crisis) upwards */
-    return 1.0f + crisis;
+    return 1.0f; /* Normal mode */
 }
 
 /* Core evaluation function with optional piece-aware caching */
-static float eval_grid_with_context(const grid_t *g,
-                                    const float *weights,
-                                    const shape_t *shape,
-                                    int rotation,
-                                    int column)
+static float eval_grid(const grid_t *g,
+                       const float *weights,
+                       const shape_t *shape,
+                       int rotation,
+                       int column)
 {
     if (!g || !weights)
         return WORST_SCORE;
@@ -1554,13 +1829,18 @@ static float eval_grid_with_context(const grid_t *g,
     for (int i = 0; i < N_FEATIDX; i++)
         score += features[i] * weights[i];
 
-    /* Phase 2: Apply adaptive structural penalties based on crisis assessment
-     */
+    /* Phase 2: Apply unified structural penalties with crisis scaling */
     float crisis_multiplier = get_crisis_level(g, features);
-    score -= get_hole_penalty(g) * crisis_multiplier; /* Bury penalty */
-    score -= BUMPINESS_PENALTY * get_bumpiness(g) *
-             crisis_multiplier;                /* Surface roughness */
-    score -= WELL_PENALTY * get_well_depth(g); /* Deep column penalty */
+
+    /* Unified penalty application - avoid double counting */
+    score -=
+        get_hole_penalty(g) * crisis_multiplier; /* Holes with crisis scaling */
+    score -= BUMPINESS_PENALTY *
+             get_bumpiness(g); /* Surface roughness (no crisis scaling) */
+    score -=
+        WELL_PENALTY * get_well_depth(g); /* Deep columns (no crisis scaling) */
+    score -=
+        CREVICE_PENALTY * get_crevices(g); /* Narrow gaps (no crisis scaling) */
 
     /* Transition penalties (Dellacherie heuristic for boundary analysis) */
     int row_trans, col_trans;
@@ -1568,17 +1848,151 @@ static float eval_grid_with_context(const grid_t *g,
     score -= ROW_TRANS_PENALTY * row_trans; /* Horizontal boundaries */
     score -= COL_TRANS_PENALTY * col_trans; /* Vertical boundaries */
 
-    /* Phase 3: Height management with non-linear scaling */
+    /* Phase 3: Unified height management system */
     int total_height = (int) (features[FEATIDX_RELIEF_AVG] * g->width);
-    score -= HEIGHT_PENALTY * total_height; /* General height discouragement */
-
-    /* Controlled height bonus for Tetris setup opportunities */
     int max_height = (int) features[FEATIDX_RELIEF_MAX];
-    if (max_height >= HIGH_STACK_START) {
-        int capped_height =
-            (max_height > HIGH_STACK_CAP ? HIGH_STACK_CAP : max_height);
-        score += (capped_height - HIGH_STACK_START + 1) * STACK_HIGH_BONUS;
+
+    /* Adjusted height penalty */
+    float height_penalty_factor = HEIGHT_PENALTY;
+
+    /* Reduce height penalty when building for Tetris */
+    if (max_height >= STRATEGIC_HEIGHT_START &&
+        max_height <= TETRIS_SETUP_HEIGHT) {
+        int well_col = -1;
+        if (grid_is_tetris_ready(g, &well_col)) {
+            /* Significantly reduce height penalty when Tetris-ready */
+            height_penalty_factor *= 0.5f;
+        }
     }
+
+    score -= height_penalty_factor * total_height * crisis_multiplier;
+
+    /* Add Tetris potential evaluation */
+    float tetris_potential = evaluate_tetris_potential(g);
+    /* Less weight in crisis */
+    score += tetris_potential * (2.0f - crisis_multiplier);
+
+    /* Strategic height bonus for Tetris setups - enhanced in appropriate
+     * conditions */
+    if (max_height >= STRATEGIC_HEIGHT_START && crisis_multiplier < 1.5f) {
+        int capped_height = MIN(max_height, STRATEGIC_HEIGHT_CAP);
+        float height_bonus = (capped_height - STRATEGIC_HEIGHT_START + 1) *
+                             STRATEGIC_HEIGHT_BONUS;
+
+        /* Check for Tetris-ready conditions */
+        int well_col = -1;
+        bool tetris_ready = grid_is_tetris_ready(g, &well_col);
+
+        if (tetris_ready) {
+            /* Significant bonus for maintaining Tetris-ready board */
+            height_bonus += TETRIS_READY_BONUS;
+
+            /* Extra bonus if height is ideal for Tetris */
+            if (max_height >= TETRIS_BUILD_HEIGHT &&
+                max_height <= TETRIS_SETUP_HEIGHT) {
+                height_bonus += TETRIS_WELL_BONUS;
+            }
+        }
+
+        /* Only reduce bonus significantly in high crisis */
+        if (crisis_multiplier > 1.3f)
+            height_bonus /= (crisis_multiplier * crisis_multiplier);
+        score += height_bonus;
+    }
+
+    /* In crisis, prioritize any line clear for survival */
+    if (crisis_multiplier > 1.5f && g->n_last_cleared > 0)
+        score += EMERGENCY_CLEAR_BONUS * g->n_last_cleared * crisis_multiplier;
+
+    /* Advanced crisis recovery strategies with pattern recognition */
+    if (crisis_multiplier > 1.2f) {
+        /* Strategy 1: Height reduction bonus */
+        if (max_height < g->height - 2) {
+            float height_buffer = (float) (g->height - max_height);
+            float height_recovery = height_buffer * 0.25f * crisis_multiplier;
+            score += height_recovery;
+        }
+
+        /* Strategy 2: Hole management bonus */
+        float holes = features[FEATIDX_GAPS];
+        if (holes < 8) {
+            float hole_bonus = (8 - holes) * 0.3f * crisis_multiplier;
+            score += hole_bonus;
+        }
+
+        /* Strategy 3: Surface smoothness bonus for easier recovery */
+        float variance = features[FEATIDX_RELIEF_VAR];
+        float avg = features[FEATIDX_RELIEF_AVG];
+        if (avg > 0 && variance / (avg * avg) < 0.15f)
+            score += SURVIVAL_BONUS * crisis_multiplier;
+
+        /* Strategy 4: Simple accessibility check (faster) */
+        if (features[FEATIDX_DISCONT] < g->width * 2)
+            score += 0.3f * crisis_multiplier;
+
+        /* Strategy 5: Simple valley bonus - check only around placement */
+        if (shape && column >= 1 && column < g->width - 1) {
+            int left_height = g->relief[column - 1] + 1;
+            int center_height = g->relief[column] + 1;
+            int right_height = g->relief[column + 1] + 1;
+
+            /* Quick valley check without division */
+            if ((left_height - center_height) >= VALLEY_DEPTH_THRESHOLD &&
+                (right_height - center_height) >= VALLEY_DEPTH_THRESHOLD) {
+                score += VALLEY_FILL_BONUS * crisis_multiplier;
+            }
+        }
+
+        /* Emergency mode tactics */
+        if (crisis_multiplier > 2.0f) {
+            /* In emergency, ANY line clear is valuable */
+            if (g->n_last_cleared > 0)
+                score += EMERGENCY_CLEAR_BONUS * g->n_last_cleared;
+
+            /* Reward pattern matching for crisis recovery */
+            if (shape) {
+                /* Check if this move helps resolve crisis patterns */
+                bool helps_crisis = false;
+
+                /* Check if piece placement reduces height variance */
+                if (variance > SURFACE_CHAOS_THRESHOLD && column >= 0)
+                    helps_crisis = true;
+
+                /* Check if piece helps clear critical holes */
+                if (holes > CRITICAL_HOLE_THRESHOLD)
+                    helps_crisis = true;
+
+                if (helps_crisis)
+                    score += PATTERN_MATCH_BONUS * crisis_multiplier;
+            }
+        }
+    }
+
+
+
+    /* Simplified surface quality for speed */
+    float surface_quality = 0.0f;
+
+    /* Quick surface scan */
+    for (int x = 0; x < g->width - 1; x++) {
+        int height_diff = abs(g->relief[x] - g->relief[x + 1]);
+        if (height_diff <= 1) {
+            surface_quality += 0.1f;
+        } else if (height_diff > 3) {
+            surface_quality -= (crisis_multiplier > 1.5f) ? 0.12f : 0.05f;
+        }
+    }
+
+    /* Simple crisis bonus for smooth surfaces */
+    if (crisis_multiplier > 1.5f && surface_quality > 0.5f)
+        surface_quality += 0.5f;
+
+    score += surface_quality;
+
+    /* Overhang Penalty: Penalize blocks extending over empty spaces
+     * These create difficult-to-fill pockets that lead to messy stacks
+     */
+    score -= OVERHANG_PENALTY * get_overhangs(g);
 
     /* Store computed result in evaluation cache */
     entry->key = combined_key;
@@ -1587,11 +2001,6 @@ static float eval_grid_with_context(const grid_t *g,
     return score;
 }
 
-/* Backward-compatible eval_grid wrapper */
-static float eval_grid(const grid_t *g, const float *weights)
-{
-    return eval_grid_with_context(g, weights, NULL, 0, 0);
-}
 
 /* Shape-aware evaluation for more accurate scoring during placement testing
  *
@@ -1600,68 +2009,45 @@ static float eval_grid(const grid_t *g, const float *weights)
  * of the resulting position.
  */
 
-/* Shallow evaluation with strategic bonuses and optional piece context */
-static float eval_shallow_with_context(const grid_t *g,
-                                       const float *weights,
-                                       const shape_t *shape,
-                                       int rotation,
-                                       int column)
+/* Simplified shallow evaluation - just use main evaluation */
+static inline float eval_shallow_with_context(const grid_t *g,
+                                              const float *weights,
+                                              const shape_t *shape,
+                                              int rotation,
+                                              int column)
 {
-    if (!g || !weights)
-        return WORST_SCORE;
-
-    /* Base evaluation using enhanced cached metrics */
-    float base_score =
-        eval_grid_with_context(g, weights, shape, rotation, column);
-
-    /* Quick strategic bonuses */
-    float bonus = 0.0f;
-
-    /* Simple stability check */
-    if (g->relief) {
-        int max_height = 0;
-        int min_height = g->height;
-
-        for (int x = 0; x < g->width; x++) {
-            int h = g->relief[x] + 1;
-            if (h > max_height)
-                max_height = h;
-            if (h < min_height)
-                min_height = h;
-        }
-
-        /* Reward stable surfaces */
-        int height_diff = max_height - min_height;
-        if (height_diff <= 3)
-            bonus += 0.5f;
-
-        /* Penalty for approaching danger zone */
-        if (max_height >= g->height - 4)
-            bonus -= (max_height - (g->height - 4)) * 1.0f;
-    }
-
-    return base_score + bonus;
+    return eval_grid(g, weights, shape, rotation, column);
 }
 
 
-/* Determine adaptive beam size based on board state */
+/* Determine adaptive beam size based on board state and crisis patterns */
 static int calc_beam_size(const grid_t *g)
 {
     if (!g || !g->relief)
         return BEAM_SIZE;
 
-    /* Find maximum stack height */
+    /* Single pass to get height and holes for crisis assessment */
     int max_height = 0;
+    int hole_count = 0;
     for (int x = 0; x < g->width; x++) {
         int height = g->relief[x] + 1;
         if (height > max_height)
             max_height = height;
+        hole_count += g->gaps[x];
     }
 
-    /* Expand beam size when approaching danger zone */
-    if (max_height >= g->height - DANGER_THRESHOLD) {
-        beam_stats.adaptive_expansions++;
-        return BEAM_SIZE_MAX; /* Use larger beam in critical situations */
+    /* Use height and holes for beam sizing */
+    beam_stats.adaptive_expansions++;
+
+    if (max_height >= PANIC_MODE_THRESHOLD || hole_count > 15) {
+        return BEAM_SIZE_MAX + 4; /* Panic mode */
+    } else if (max_height >= DESPERATE_MODE_THRESHOLD || hole_count > 12) {
+        return BEAM_SIZE_MAX + 2; /* Desperate mode */
+    } else if (max_height >= EMERGENCY_MODE_THRESHOLD || hole_count > 10) {
+        return BEAM_SIZE_MAX; /* Emergency mode */
+    } else if (max_height >= CRISIS_MODE_THRESHOLD ||
+               hole_count > CRITICAL_HOLE_THRESHOLD) {
+        return BEAM_SIZE + 2; /* Crisis mode */
     }
 
     return BEAM_SIZE;
@@ -1858,16 +2244,17 @@ static float ab_search_snapshot(grid_t *working_grid,
                                 int depth,
                                 int piece_index,
                                 float alpha,
-                                float beta)
+                                float beta,
+                                int combo_count)
 {
     move_ordering.stats.total_nodes++;
 
     if (depth <= 0)
-        return eval_grid(working_grid, weights);
+        return eval_grid(working_grid, weights, NULL, 0, 0);
 
     shape_t *shape = shape_stream_peek(shapes, piece_index);
     if (!shape)
-        return eval_grid(working_grid, weights);
+        return eval_grid(working_grid, weights, NULL, 0, 0);
 
     float best = WORST_SCORE;
     block_t blk = {.shape = shape};
@@ -1897,7 +2284,8 @@ static float ab_search_snapshot(grid_t *working_grid,
     }
 
     if (move_count == 0)
-        return eval_grid(working_grid, weights); /* No legal moves */
+        return eval_grid(working_grid, weights, NULL, 0,
+                         0); /* No legal moves */
 
     /* Apply advanced move ordering */
     int current_ply = MAX_SEARCH_DEPTH - depth; /* Convert depth to ply */
@@ -1912,8 +2300,15 @@ static float ab_search_snapshot(grid_t *working_grid,
         blk.offset.x = col;
         blk.offset.y = elev_y;
 
+        /* Store initial Y position for hard drop bonus calculation */
+        int initial_y = blk.offset.y;
+
         /* Apply placement with efficient snapshot system */
         grid_block_drop(working_grid, &blk);
+
+        /* Capture final Y position after drop */
+        int final_y = blk.offset.y;
+
         grid_snapshot_t snap;
         int lines = grid_apply_block(working_grid, &blk, &snap);
         depth_stats.snapshots_used++;
@@ -1927,16 +2322,64 @@ static float ab_search_snapshot(grid_t *working_grid,
         if (lines >= 2 && depth < MAX_SEARCH_DEPTH)
             next_depth = depth; /* Extend search by not decrementing depth */
 
-        /* Recurse with alpha-beta bounds */
+        /* Determine combo for the next state */
+        int next_combo = (lines > 0) ? combo_count + 1 : 0;
+
+        /* Recurse with alpha-beta bounds and the new combo count */
         float score =
             ab_search_snapshot(working_grid, shapes, weights, next_depth,
-                               piece_index + 1, alpha, beta);
+                               piece_index + 1, alpha, beta, next_combo);
 
-        score += powf(lines, 2) * LINE_CLEAR_BONUS;
+        /* Optimized bonus calculation */
+        float bonus_score = 0.0f;
 
-        /* T-spin bonus: reward T-spins that clear lines */
+        /* Enhanced line clear bonus with Tetris emphasis */
+        if (lines > 0) {
+            float clear_bonus = LINE_CLEAR_BONUS;
+
+            /* Tetris-specific bonuses */
+            if (lines == 4) {
+                clear_bonus = TETRIS_BONUS; /* Massive Tetris bonus */
+            } else if (lines == 3) {
+                clear_bonus = TRIPLE_CLEAR_BONUS;
+            } else if (lines == 2) {
+                clear_bonus = DOUBLE_CLEAR_BONUS;
+            }
+
+            /* Quick crisis assessment - only when lines cleared */
+            int max_height = working_grid->relief[0] + 1;
+            for (int x = 1; x < working_grid->width; x++) {
+                int h = working_grid->relief[x] + 1;
+                if (h > max_height)
+                    max_height = h;
+            }
+
+            /* Crisis multiplier for line clear bonus */
+            if (max_height >= PANIC_MODE_THRESHOLD) {
+                clear_bonus *= 5.0f;
+            } else if (max_height >= DESPERATE_MODE_THRESHOLD) {
+                clear_bonus *= 3.0f;
+            } else if (max_height >= EMERGENCY_MODE_THRESHOLD) {
+                clear_bonus *= 2.0f;
+            }
+
+            /* Apply line clear bonuses with proper scaling */
+            bonus_score += lines * lines * clear_bonus;
+        }
+
+        /* Combo bonus for current move */
+        if (combo_count > 0)
+            bonus_score += COMBO_BONUS * combo_count;
+
+        /* T-spin bonus (only if lines were cleared) */
         if (lines > 0 && is_t_spin(working_grid, &blk))
-            score += T_SPIN_BONUS * lines; /* Scale bonus by lines cleared */
+            bonus_score += T_SPIN_BONUS * lines;
+
+        /* Hard drop bonus (small encouragement for fast placement) */
+        float hard_drop_distance = (float) (initial_y - final_y);
+        bonus_score += hard_drop_distance * 0.01f;
+
+        score += bonus_score;
 
         /* Efficient rollback using snapshot system */
         grid_rollback(working_grid, &snap);
@@ -2135,8 +2578,15 @@ static bool search_best_snapshot(const grid_t *grid,
                 continue;
             }
 
+            /* Store initial Y position for hard drop bonus calculation */
+            int initial_y = test_block->offset.y;
+
             /* Apply placement with efficient snapshot system */
             grid_block_drop(working_grid, test_block);
+
+            /* Capture final Y position after drop */
+            int final_y = test_block->offset.y;
+
             grid_snapshot_t snap;
             int lines_cleared =
                 grid_apply_block(working_grid, test_block, &snap);
@@ -2157,40 +2607,70 @@ static bool search_best_snapshot(const grid_t *grid,
             }
 #endif
 
-            /* Quick shallow evaluation with piece context for better caching */
+            /* Base evaluation with piece context */
             float position_score = eval_shallow_with_context(
-                                       working_grid, weights, test_block->shape,
-                                       test_block->rot, test_block->offset.x) +
-                                   powf(lines_cleared, 2) * LINE_CLEAR_BONUS;
+                working_grid, weights, test_block->shape, test_block->rot,
+                test_block->offset.x);
 
-            /* T-spin bonus: reward T-spins that clear lines */
+            /* Enhanced bonus calculation with Tetris emphasis */
+            float placement_bonus = 0.0f;
+
+            /* Tetris-specific line clear bonuses */
+            if (lines_cleared == 4) {
+                /* Massive Tetris reward */
+                placement_bonus += TETRIS_BONUS * 4.0f;
+            } else if (lines_cleared == 3) {
+                placement_bonus += TRIPLE_CLEAR_BONUS * 3.0f;
+            } else if (lines_cleared == 2) {
+                placement_bonus += DOUBLE_CLEAR_BONUS * 2.0f;
+            } else if (lines_cleared == 1) {
+                placement_bonus += LINE_CLEAR_BONUS;
+            }
+
             if (lines_cleared > 0 && is_t_spin(working_grid, test_block))
-                position_score += T_SPIN_BONUS * lines_cleared;
+                placement_bonus += T_SPIN_BONUS * lines_cleared;
 
-            /* Enhanced well-blocking penalties */
+            float hard_drop_distance = (float) (initial_y - final_y);
+            placement_bonus += hard_drop_distance * 0.01f;
+
+            position_score += placement_bonus;
+
+            /* Enhanced Tetris well management */
             if (tetris_ready) {
                 bool is_I_piece = (test_block->shape->rot_wh[0].x == 4);
-                if (!is_I_piece) {
-                    /* Check if the piece was placed in the well column */
-                    int piece_left = test_block->offset.x;
-                    int piece_right =
-                        piece_left +
-                        test_block->shape->rot_wh[test_block->rot].x - 1;
+                int piece_left = test_block->offset.x;
+                int piece_right = piece_left +
+                                  test_block->shape->rot_wh[test_block->rot].x -
+                                  1;
 
+                if (is_I_piece) {
+                    /* I-piece placement bonuses */
+                    if (test_block->rot == 1 &&
+                        test_block->offset.x == well_col) {
+                        /* Vertical I-piece in well - perfect for Tetris! */
+                        position_score += I_PIECE_WELL_BONUS;
+                        if (lines_cleared == 4) {
+                            /* Actually achieved a Tetris! */
+                            position_score += TETRIS_BONUS * 2.0f;
+                        }
+                    }
+                } else {
+                    /* Non-I piece penalties for blocking well */
                     if (piece_right >= well_col && piece_left <= well_col) {
-                        /* The piece is blocking the well. Apply a heavy penalty
-                         */
                         int well_depth = working_grid->height -
                                          working_grid->relief[well_col];
                         position_score -= WELL_BLOCK_BASE_PENALTY;
                         position_score -= WELL_BLOCK_DEPTH_FACTOR * well_depth;
 
-                        /* Additional penalty if piece makes well inaccessible
-                         */
+                        /* Severe penalty if piece makes well inaccessible */
                         if (!grid_is_well_accessible(working_grid, well_col,
                                                      1)) {
                             position_score -= WELL_ACCESS_BLOCK_PENALTY;
                         }
+                    } else if (abs(piece_left - well_col) <= 1 ||
+                               abs(piece_right - well_col) <= 1) {
+                        /* Bonus for keeping area around well clear */
+                        position_score += WELL_MAINTENANCE_BONUS;
                     }
                 }
             }
@@ -2276,7 +2756,14 @@ static bool search_best_snapshot(const grid_t *grid,
                 test_block->offset.x = candidate->col;
                 test_block->offset.y = elevated_y;
 
+                /* Store initial Y position for hard drop bonus calculation */
+                int initial_y = test_block->offset.y;
+
                 grid_block_drop(working_grid, test_block);
+
+                /* Capture final Y position after drop */
+                int final_y = test_block->offset.y;
+
                 grid_snapshot_t snap;
                 int lines_cleared =
                     grid_apply_block(working_grid, test_block, &snap);
@@ -2286,12 +2773,30 @@ static bool search_best_snapshot(const grid_t *grid,
                 float alpha = current_best_score * 0.9f;
                 float deep_score =
                     ab_search_snapshot(working_grid, stream, weights,
-                                       current_depth - 1, 1, alpha, FLT_MAX) +
-                    powf(lines_cleared, 2) * LINE_CLEAR_BONUS;
+                                       current_depth - 1, 1, alpha, FLT_MAX, 0);
 
-                /* T-spin bonus: reward T-spins that clear lines */
+                /* Apply enhanced bonuses with Tetris emphasis */
+                float search_bonus = 0.0f;
+
+                /* Tetris-specific line clear bonuses */
+                if (lines_cleared == 4) {
+                    search_bonus +=
+                        TETRIS_BONUS * 4.0f; /* Massive Tetris reward */
+                } else if (lines_cleared == 3) {
+                    search_bonus += TRIPLE_CLEAR_BONUS * 3.0f;
+                } else if (lines_cleared == 2) {
+                    search_bonus += DOUBLE_CLEAR_BONUS * 2.0f;
+                } else if (lines_cleared == 1) {
+                    search_bonus += LINE_CLEAR_BONUS;
+                }
+
                 if (lines_cleared > 0 && is_t_spin(working_grid, test_block))
-                    deep_score += T_SPIN_BONUS * lines_cleared;
+                    search_bonus += T_SPIN_BONUS * lines_cleared;
+
+                float hard_drop_distance = (float) (initial_y - final_y);
+                search_bonus += hard_drop_distance * 0.01f;
+
+                deep_score += search_bonus;
 
                 /* Apply enhanced strategic penalties */
                 if (tetris_ready) {
