@@ -29,15 +29,13 @@ static const int base_shapes[][4][2] = {
      */
     {{0, 1}, {1, 1}, {2, 1}, {3, 1}},
 
-    /* L-piece
+    /* J-piece
      *   █
      * ███
      */
-
     {{0, 1}, {1, 1}, {2, 1}, {2, 2}},
 
-
-     /* J-piece
+    /* L-piece
      * ███
      *   █
      */
@@ -47,6 +45,7 @@ static const int base_shapes[][4][2] = {
      * █
      * ██
      *  █
+     */
     {{1, 1}, {2, 1}, {2, 0}, {1, 2}},
 
     /* Z-piece
