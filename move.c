@@ -53,7 +53,7 @@
 #define TETRIS_READY_BONUS 8.0f  /* Higher bonus when board is Tetris-ready */
 
 /* T-spin detection and bonus */
-#define T_PIECE_SIGNATURE 0x36 /* Computed signature for T-piece */
+#define T_PIECE_SIGNATURE 0x72 /* Computed signature for T-piece */
 #define T_SPIN_BONUS 8.0f      /* Reward for successful T-spin */
 
 /* Combo scoring bonus */

@@ -7,6 +7,9 @@
 #include "tetris.h"
 #include "utils.h"
 
+/* T-piece signature for wall kick detection */
+#define T_PIECE_SIGNATURE 0x72
+
 /* Zobrist hashing system: Incremental hash computation for grid states
  *
  * Algorithm overview:
@@ -748,15 +751,66 @@ void grid_block_move(const grid_t *g, block_t *b, direction_t d, int amount)
         block_move(b, d, -amount);
 }
 
-/* Consolidated rotation function with consistent validation */
+/* Wall kick offsets for T-piece rotation (simplified SRS system) */
+static const int wall_kick_offsets[][4][2] = {
+    /* Rotation 0->1 */ {{0,0}, {-1,0}, {-1,1}, {0,-2}},
+    /* Rotation 1->2 */ {{0,0}, {1,0}, {1,-1}, {0,2}},
+    /* Rotation 2->3 */ {{0,0}, {1,0}, {1,1}, {0,-2}},
+    /* Rotation 3->0 */ {{0,0}, {-1,0}, {-1,-1}, {0,2}}
+};
+
+/* Consolidated rotation function with wall kick system */
 void grid_block_rotate(const grid_t *g, block_t *b, int amount)
 {
     if (!g || !b || !b->shape)
         return;
 
+    /* Store original position and rotation */
+    int orig_x = b->offset.x;
+    int orig_y = b->offset.y;
+    int orig_rot = b->rot;
+
+    /* Apply rotation */
     block_rotate(b, amount);
-    if (!block_valid(g, b))
-        block_rotate(b, -amount);
+    
+    /* If rotation is valid at current position, we're done */
+    if (block_valid(g, b))
+        return;
+
+    /* Try wall kicks for T-piece */
+    if (b->shape->sig == T_PIECE_SIGNATURE) {
+        /* Determine kick table index based on rotation transition */
+        int kick_table_idx = -1;
+        int new_rot = b->rot;
+        
+        if (orig_rot == 0 && new_rot == 1) kick_table_idx = 0;
+        else if (orig_rot == 1 && new_rot == 2) kick_table_idx = 1;
+        else if (orig_rot == 2 && new_rot == 3) kick_table_idx = 2;
+        else if (orig_rot == 3 && new_rot == 0) kick_table_idx = 3;
+        else if (orig_rot == 1 && new_rot == 0) kick_table_idx = 3; /* CCW 1->0 */
+        else if (orig_rot == 2 && new_rot == 1) kick_table_idx = 0; /* CCW 2->1 */
+        else if (orig_rot == 3 && new_rot == 2) kick_table_idx = 1; /* CCW 3->2 */
+        else if (orig_rot == 0 && new_rot == 3) kick_table_idx = 2; /* CCW 0->3 */
+        
+        if (kick_table_idx >= 0) {
+            /* Try each wall kick offset */
+            for (int i = 0; i < 4; i++) {
+                int kick_x = wall_kick_offsets[kick_table_idx][i][0];
+                int kick_y = wall_kick_offsets[kick_table_idx][i][1];
+                
+                b->offset.x = orig_x + kick_x;
+                b->offset.y = orig_y + kick_y;
+                
+                if (block_valid(g, b))
+                    return; /* Success with this wall kick */
+            }
+        }
+    }
+
+    /* All wall kicks failed, revert rotation and position */
+    b->offset.x = orig_x;
+    b->offset.y = orig_y;
+    block_rotate(b, -amount);
 }
 
 bool grid_is_tetris_ready(const grid_t *g, int *well_col)
